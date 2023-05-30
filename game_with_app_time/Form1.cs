@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.IO;
 
 namespace game_with_app_time
 {
@@ -25,25 +26,45 @@ namespace game_with_app_time
         public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
 
         [DllImport("user32.dll", SetLastError = true)]
-        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int lpdwProcessId);
+
+        private string beforeForegroundWindowApp = "t";
+        private DateTime beforeDT;
+
 
         public Form1()
-        {
-                                                                       
+        {                                                    
             InitializeComponent();
             AllocConsole();
             backgroundWorker1.RunWorkerAsync();
             Console.WriteLine("hogehoge");
+
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
             
             Process[] localAll = Process.GetProcesses();
-            Process current = Process.GetCurrentProcess();
+            Process current = Process.GetCurrentProcess();//起動しているこのプロセスのことを得る
 
 
             MessageBox.Show(current.ProcessName);
+
+            //フォルダが存在するかどうか
+            if (Directory.Exists(@"c:\RecordTime\"))
+            {
+
+            }
+            else
+            {
+               　//フォルダがない時にディレクトリを作成
+                Directory.CreateDirectory(@"c:\RecordTime\");
+            }
+
+            StreamWriter sw = new StreamWriter(@"c:\RecordTime\time.txt");
+            sw.WriteLine("test");
+            sw.Close();
+            
         }
 
         private void textBox1_TextChanged(object sender, EventArgs e)
@@ -55,7 +76,9 @@ namespace game_with_app_time
 
         private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
         {
-            
+            var Timer = new Stopwatch();
+           
+
             while (!backgroundWorker1.CancellationPending)
             {
 
@@ -66,16 +89,30 @@ namespace game_with_app_time
                 Console.WriteLine(sb);
                 string st = sb.ToString();
                 Console.WriteLine(st);
-                uint processid;
+                int processid;
                 GetWindowThreadProcessId(GetForegroundWindow(), out processid);
                 st = processid.ToString();
-                Process pro = Process.GetProcessById((int)processid);
-                
+                Process pro = Process.GetProcessById(processid);
+
+                //nowForegroundWindowApp = pro.MainModule.FileVersionInfo.ProductName;
+                //今のプロセスの名前を取得
+                string nowForegroundWindowApp = pro.ProcessName;
+                if(beforeForegroundWindowApp != nowForegroundWindowApp)//前のアクティブ状態のアプリと同じアプリがアクティブかどうか
+                {
+                    Timer.Stop();//計測停止
+                    StreamWriter sw = new StreamWriter(@"c:\RecordTime\time.txt",true);
+                    sw.WriteLine(beforeDT.ToString() + " " + beforeForegroundWindowApp + " " + Timer.Elapsed);
+                    sw.Close();
+                    Timer.Restart();
+                }
+                beforeForegroundWindowApp = pro.ProcessName;
+                beforeDT = DateTime.Now;
+
                 
                 if (this.InvokeRequired)
                 {
                     //DelegateProcess process = new DelegateProcess(ChangeLabelText);
-                    this.Invoke(new Action<string>(this.ChangeLabelText), pro.ProcessName);
+                    this.Invoke(new Action<string>(this.ChangeLabelText), beforeForegroundWindowApp);
                 }
             }
         }

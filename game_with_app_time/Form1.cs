@@ -30,14 +30,53 @@ namespace game_with_app_time
 
         private string beforeForegroundWindowApp = "t";
         private DateTime beforeDT;
+        private List<AppData> appData = new List<AppData>();
+
+        //アプリごとのデータを登録するクラス
+        class AppData
+        {
+            private string appName;
+            private TimeSpan totalTime;
+
+
+            /// <summary>
+            /// アプリケーションの名前
+            /// </summary>
+            public string AppName
+            {
+                get { return appName; }
+                set { appName = value; }
+            }
+
+            /// <summary>
+            /// アプリケーションの総起動時間
+            /// </summary>
+            public TimeSpan TotalTime
+            {
+                get { return totalTime; }
+                set { totalTime = value; }
+            }
+        }
 
 
         public Form1()
         {                                                    
             InitializeComponent();
             AllocConsole();
+
+            //フォルダが存在するかどうか
+            if (Directory.Exists(@"c:\RecordTime\")) { }
+            else
+            {
+               　//フォルダがない時にディレクトリを作成
+                Directory.CreateDirectory(@"c:\RecordTime\");
+            }
+
             backgroundWorker1.RunWorkerAsync();
             Console.WriteLine("hogehoge");
+
+
+            Application.ApplicationExit += new EventHandler(this.Application_ApplicationExit);
 
         }
 
@@ -48,7 +87,8 @@ namespace game_with_app_time
             Process current = Process.GetCurrentProcess();//起動しているこのプロセスのことを得る
 
 
-            MessageBox.Show(current.ProcessName);
+            //MessageBox.Show(current.ProcessName);
+            MessageBox.Show(appData[1].TotalTime.TotalSeconds.ToString());
 
             //フォルダが存在するかどうか
             if (Directory.Exists(@"c:\RecordTime\"))
@@ -61,9 +101,9 @@ namespace game_with_app_time
                 Directory.CreateDirectory(@"c:\RecordTime\");
             }
 
-            StreamWriter sw = new StreamWriter(@"c:\RecordTime\time.txt");
+/*            StreamWriter sw = new StreamWriter(@"c:\RecordTime\time.txt");
             sw.WriteLine("test");
-            sw.Close();
+            sw.Close();*/
             
         }
 
@@ -99,11 +139,43 @@ namespace game_with_app_time
                 string nowForegroundWindowApp = pro.ProcessName;
                 if(beforeForegroundWindowApp != nowForegroundWindowApp)//前のアクティブ状態のアプリと同じアプリがアクティブかどうか
                 {
+                    //時間計測
                     Timer.Stop();//計測停止
                     StreamWriter sw = new StreamWriter(@"c:\RecordTime\time.txt",true);
                     sw.WriteLine(beforeDT.ToString() + " " + beforeForegroundWindowApp + " " + Timer.Elapsed);
+                    TimeSpan span = Timer.Elapsed;
                     sw.Close();
                     Timer.Restart();
+
+                    //データの中に既にアプリケーションの名前が登録されているのかどうかを確認
+                    bool flag = false;
+                    //データのインデックスを確認するためのint
+                    int cnt = -1;
+                    for (int i = 0; i < appData.Count; i++)
+                    {
+                        if(appData[i].AppName == beforeForegroundWindowApp)
+                        {
+                            flag = true;
+                            cnt = i;
+                        }
+                    }
+
+                    if(flag == false)//データにアプリケーションが保存されていない場合
+                    {
+                        //アプリケーションの登録
+                        AppData test = new AppData();
+                        test.AppName = beforeForegroundWindowApp;
+                        test.TotalTime = span;
+                        appData.Add(test);
+                    }
+                    else
+                    {
+                        if(cnt >= 0)
+                        {
+                            appData[cnt].TotalTime = appData[cnt].TotalTime + span;
+                        }
+                    }
+
                 }
                 beforeForegroundWindowApp = pro.ProcessName;
                 beforeDT = DateTime.Now;
@@ -132,6 +204,24 @@ namespace game_with_app_time
         {
             label1.Text = tex;
             return;
+        }
+
+        private void LoadAppData()
+        {
+
+        }
+
+        private void SaveAppData()
+        {
+
+        }
+
+        private void Application_ApplicationExit(object sender, EventArgs e)
+        {
+            StreamWriter sw = new StreamWriter(@"c:\RecordTime\time.txt", true);
+            sw.WriteLine("exit");
+            sw.Close();
+            Application.ApplicationExit -= new EventHandler(this.Application_ApplicationExit);
         }
     }
 }

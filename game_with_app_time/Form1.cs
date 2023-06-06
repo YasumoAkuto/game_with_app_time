@@ -16,8 +16,8 @@ namespace game_with_app_time
     public partial class Form1 : Form
     {
 
-        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
-        private static extern bool AllocConsole();
+/*        [System.Runtime.InteropServices.DllImport("kernel32.dll")]
+        private static extern bool AllocConsole();*/
 
         [DllImport("user32.dll")]
         public static extern IntPtr GetForegroundWindow();
@@ -31,6 +31,10 @@ namespace game_with_app_time
         private string beforeForegroundWindowApp = "t";
         private DateTime beforeDT;
         private List<AppData> appData = new List<AppData>();
+        private string comboAppName = "";
+        private int comboAppIndex = -1;
+        private List<string> registeredComboBox = new List<string>();
+        private AppData registerdAppData = new AppData();
 
         //アプリごとのデータを登録するクラス
         class AppData
@@ -62,7 +66,7 @@ namespace game_with_app_time
         public Form1()
         {                                                    
             InitializeComponent();
-            AllocConsole();
+            //AllocConsole();
 
             //フォルダが存在するかどうか
             if (Directory.Exists(@"c:\RecordTime\")) { }
@@ -72,43 +76,68 @@ namespace game_with_app_time
                 Directory.CreateDirectory(@"c:\RecordTime\");
             }
 
+            LoadAppData();
+
             backgroundWorker1.RunWorkerAsync();
-            Console.WriteLine("hogehoge");
 
 
             Application.ApplicationExit += new EventHandler(this.Application_ApplicationExit);
+
+
 
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
-            
-            Process[] localAll = Process.GetProcesses();
-            Process current = Process.GetCurrentProcess();//起動しているこのプロセスのことを得る
-
-
-            //MessageBox.Show(current.ProcessName);
-            MessageBox.Show(appData[1].TotalTime.TotalSeconds.ToString());
-
-            //フォルダが存在するかどうか
-            if (Directory.Exists(@"c:\RecordTime\"))
+            if(comboBox1.SelectedItem != null)
             {
+                registerdAppData.AppName = comboBox1.SelectedItem.ToString();
+                label2.Text = registerdAppData.AppName;
+            }
+
+/*            if(textBox1.Text != "")
+            {
+                bool nameFlag = false;
+                for(int i = 0; i < appData.Count; i++)
+                {
+                    if(appData[i].AppName == textBox1.Text)
+                    {
+                        comboAppName = textBox1.Text;
+                        comboAppIndex = i;
+                        nameFlag = true;
+                    }
+                }
+                if(nameFlag == true)
+                {
+                    MessageBox.Show("登録完了。");
+                }
+                else
+                {
+                    MessageBox.Show("そのアプリ名はありません。");
+                }
 
             }
             else
             {
-               　//フォルダがない時にディレクトリを作成
-                Directory.CreateDirectory(@"c:\RecordTime\");
+                MessageBox.Show("何も入力されていません。");
             }
+
+            if(comboAppName != "")
+            {
+                label3.Text = appData[comboAppIndex].TotalTime.ToString();
+            }*/
+            
+/*            Process[] localAll = Process.GetProcesses();
+            Process current = Process.GetCurrentProcess();//起動しているこのプロセスのことを得る*/
+
+
+            //MessageBox.Show(current.ProcessName);
+            //MessageBox.Show(appData[1].TotalTime.TotalSeconds.ToString());
+
 
 /*            StreamWriter sw = new StreamWriter(@"c:\RecordTime\time.txt");
             sw.WriteLine("test");
             sw.Close();*/
-            
-        }
-
-        private void textBox1_TextChanged(object sender, EventArgs e)
-        {
             
         }
 
@@ -118,7 +147,7 @@ namespace game_with_app_time
         {
             var Timer = new Stopwatch();
            
-
+            //Update的な感じで使うために必要な手順
             while (!backgroundWorker1.CancellationPending)
             {
 
@@ -126,9 +155,7 @@ namespace game_with_app_time
                                 Console.WriteLine(currentProcess.ProcessName);*/
                 StringBuilder sb = new StringBuilder(65535);//65535に特に意味はない
                 GetWindowText(GetForegroundWindow(), sb, 65535);
-                Console.WriteLine(sb);
                 string st = sb.ToString();
-                Console.WriteLine(st);
                 int processid;
                 GetWindowThreadProcessId(GetForegroundWindow(), out processid);
                 st = processid.ToString();
@@ -139,10 +166,11 @@ namespace game_with_app_time
                 string nowForegroundWindowApp = pro.ProcessName;
                 if(beforeForegroundWindowApp != nowForegroundWindowApp)//前のアクティブ状態のアプリと同じアプリがアクティブかどうか
                 {
+                    
                     //時間計測
                     Timer.Stop();//計測停止
                     StreamWriter sw = new StreamWriter(@"c:\RecordTime\time.txt",true);
-                    sw.WriteLine(beforeDT.ToString() + " " + beforeForegroundWindowApp + " " + Timer.Elapsed);
+                    sw.WriteLine(beforeDT.ToString() + "," + beforeForegroundWindowApp + "," + Timer.Elapsed);
                     TimeSpan span = Timer.Elapsed;
                     sw.Close();
                     Timer.Restart();
@@ -176,6 +204,10 @@ namespace game_with_app_time
                         }
                     }
 
+                    if (this.InvokeRequired)
+                    {
+                        this.Invoke(new Action<string>(this.AddComboBox), beforeForegroundWindowApp);
+                    }
                 }
                 beforeForegroundWindowApp = pro.ProcessName;
                 beforeDT = DateTime.Now;
@@ -191,6 +223,7 @@ namespace game_with_app_time
 
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
         {
+            
             backgroundWorker1.CancelAsync();
             Application.DoEvents();
         }
@@ -206,22 +239,78 @@ namespace game_with_app_time
             return;
         }
 
+        private void AddComboBox(string text)
+        {
+            bool comboFlag = false;
+            for(int i = 0; i < registeredComboBox.Count; i++)
+            {
+                if (registeredComboBox[i] == text)
+                {
+                    comboFlag = true;
+                }
+            }
+            if(comboFlag == false)
+            {
+                registeredComboBox.Add(text);
+                comboBox1.Items.Add(text);
+            }
+            return;
+        }
+
         private void LoadAppData()
         {
-
+            StreamReader sr = new StreamReader(@"c:\RecordTime\TotalTime.txt");
+            while(sr.Peek() > -1)
+            {
+                string s = sr.ReadLine();
+                string[] s_array = s.Split(',');
+                AppData y = new AppData();
+                y.AppName = s_array[0];
+                y.TotalTime = TimeSpan.Parse(s_array[1]);
+                appData.Add(y);
+            }
+            
         }
 
         private void SaveAppData()
         {
-
+            StreamWriter sw = new StreamWriter(@"c:\RecordTime\TotalTime.txt");
+            for(int i = 0; i < appData.Count; i++)
+            {
+                sw.WriteLine(appData[i].AppName + "," + appData[i].TotalTime.ToString());
+            }
+            sw.Close();
         }
 
         private void Application_ApplicationExit(object sender, EventArgs e)
         {
+            SaveAppData();
             StreamWriter sw = new StreamWriter(@"c:\RecordTime\time.txt", true);
             sw.WriteLine("exit");
             sw.Close();
             Application.ApplicationExit -= new EventHandler(this.Application_ApplicationExit);
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            if (comboAppName != "")
+            {
+                label3.Text = appData[comboAppIndex].TotalTime.ToString();
+            }
+        }
+
+        private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string selectedItem = comboBox1.SelectedItem.ToString();
+            for(int i = 0; i < appData.Count; i++)
+            {
+                if(appData[i].AppName == selectedItem)
+                {
+                    comboAppIndex = i;
+                    comboAppName = selectedItem;
+                    label3.Text = appData[i].TotalTime.ToString();
+                }
+            }
         }
     }
 }

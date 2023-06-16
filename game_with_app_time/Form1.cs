@@ -35,6 +35,7 @@ namespace game_with_app_time
         private int comboAppIndex = -1;
         private List<string> registeredComboBox = new List<string>();
         private AppData registerdAppData = new AppData();
+        private string folderPath = System.IO.Directory.GetCurrentDirectory();
 
         //アプリごとのデータを登録するクラス
         class AppData
@@ -69,11 +70,12 @@ namespace game_with_app_time
             //AllocConsole();
 
             //フォルダが存在するかどうか
-            if (Directory.Exists(@"c:\RecordTime\")) { }
+            System.IO.Directory.SetCurrentDirectory(folderPath);
+            if (Directory.Exists(@"RecordTime\")) { }
             else
             {
                　//フォルダがない時にディレクトリを作成
-                Directory.CreateDirectory(@"c:\RecordTime\");
+                Directory.CreateDirectory(@"RecordTime\");
             }
 
             LoadAppData();
@@ -169,7 +171,8 @@ namespace game_with_app_time
                     
                     //時間計測
                     Timer.Stop();//計測停止
-                    StreamWriter sw = new StreamWriter(@"c:\RecordTime\time.txt",true);
+                    Directory.SetCurrentDirectory(folderPath);
+                    StreamWriter sw = new StreamWriter(@"RecordTime\time.txt",true);
                     sw.WriteLine(beforeDT.ToString() + "," + beforeForegroundWindowApp + "," + Timer.Elapsed);
                     TimeSpan span = Timer.Elapsed;
                     sw.Close();
@@ -259,22 +262,32 @@ namespace game_with_app_time
 
         private void LoadAppData()
         {
-            StreamReader sr = new StreamReader(@"c:\RecordTime\TotalTime.txt");
-            while(sr.Peek() > -1)
+            Directory.SetCurrentDirectory(folderPath);
+            try
             {
-                string s = sr.ReadLine();
-                string[] s_array = s.Split(',');
-                AppData y = new AppData();
-                y.AppName = s_array[0];
-                y.TotalTime = TimeSpan.Parse(s_array[1]);
-                appData.Add(y);
+                StreamReader sr = new StreamReader(@"RecordTime\TotalTime.txt");
+                while (sr.Peek() > -1)
+                {
+                    string s = sr.ReadLine();
+                    string[] s_array = s.Split(',');
+                    AppData y = new AppData();
+                    y.AppName = s_array[0];
+                    y.TotalTime = TimeSpan.Parse(s_array[1]);
+                    appData.Add(y);
+                }
+            }
+            catch(FileNotFoundException e)
+            {
+                return;
             }
             
         }
 
         private void SaveAppData()
         {
-            StreamWriter sw = new StreamWriter(@"c:\RecordTime\TotalTime.txt");
+            Directory.SetCurrentDirectory(folderPath);
+
+            StreamWriter sw = new StreamWriter(@"RecordTime\TotalTime.txt");
             for(int i = 0; i < appData.Count; i++)
             {
                 sw.WriteLine(appData[i].AppName + "," + appData[i].TotalTime.ToString());
@@ -285,7 +298,8 @@ namespace game_with_app_time
         private void Application_ApplicationExit(object sender, EventArgs e)
         {
             SaveAppData();
-            StreamWriter sw = new StreamWriter(@"c:\RecordTime\time.txt", true);
+            Directory.SetCurrentDirectory(folderPath);
+            StreamWriter sw = new StreamWriter(@"RecordTime\time.txt", true);
             sw.WriteLine("exit");
             sw.Close();
             Application.ApplicationExit -= new EventHandler(this.Application_ApplicationExit);
